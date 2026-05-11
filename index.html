@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alumni Coffee Chat App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f9f9f9; --card: #ffffff; --border: #e5e5e5; --border2: #d0d0d0;
+    --text: #1a1a1a; --text2: #555; --text3: #888;
+    --green: #0f6e56; --green-bg: #e1f5ee; --green-border: #5dcaa5;
+    --blue-bg: #e6f1fb; --blue: #0c447c;
+    --amber-bg: #faeeda; --amber: #633806; --amber-border: #ef9f27;
+    --red-bg: #fcebeb; --red: #a32d2d; --red-border: #e24b4a;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* LOGIN */
+  .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 2px 16px rgba(0,0,0,0.06); }
+  .login-card h2 { font-size: 20px; margin-bottom: 6px; }
+  .login-card p { font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; }
+  .login-card input { width: 100%; border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 15px; margin-bottom: 10px; outline: none; }
+  .login-card input:focus { border-color: #999; }
+  .login-error { font-size: 13px; color: var(--red); margin-bottom: 10px; display: none; }
+
+  /* MAIN APP */
+  .app { display: none; max-width: 820px; margin: 0 auto; padding: 2rem 1rem; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
+  .app-header h1 { font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .app-header h1 span { font-size: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+  .lbl { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+
+  /* COLLAPSIBLE */
+  .collapse-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text2); background: none; border: none; font-family: inherit; padding: 0; width: 100%; text-align: left; }
+  .collapse-toggle:hover { color: var(--text); }
+  .collapse-body { display: none; margin-top: 12px; }
+  .collapse-body.open { display: block; }
+  .rules-list { list-style: none; }
+  .rules-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text2); padding: 7px 0; border-bottom: 1px solid var(--border); line-height: 1.45; }
+  .rules-list li:last-child { border-bottom: none; }
+  .rbadge { font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  .p1 { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); }
+  .p2 { background: var(--blue-bg); color: var(--blue); }
+  .p3 { background: var(--amber-bg); color: var(--amber); }
+  .step-row { display: flex; align-items: flex-start; margin-bottom: 8px; }
+  .step-row:last-child { margin-bottom: 0; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border2); font-size: 11px; font-weight: 600; color: var(--text2); margin-right: 8px; flex-shrink: 0; margin-top: 1px; }
+  .step-content { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .step-content code { font-family: monospace; font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* UPLOAD */
+  .drop-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: background .15s, border-color .15s; }
+  .drop-zone:hover, .drop-zone.over { background: var(--blue-bg); border-color: #85b7eb; }
+  .drop-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+  .drop-zone p { font-size: 14px; color: var(--text2); margin-bottom: 4px; }
+  .drop-zone span { font-size: 12px; color: var(--text3); }
+  input[type=file] { display: none; }
+  .file-info { display: none; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg); border-radius: var(--radius-sm); margin-top: 10px; }
+  .file-info.show { display: flex; }
+  .file-icon { font-size: 20px; }
+  .file-name { font-size: 14px; font-weight: 500; flex: 1; }
+  .file-meta { font-size: 12px; color: var(--text2); }
+
+  /* SUMMARY CHIPS */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px; margin-top: 12px; }
+  .chip { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .chip-val { font-size: 20px; font-weight: 600; }
+  .chip-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 9px 18px; font-size: 14px; font-family: inherit; cursor: pointer; background: transparent; color: var(--text); transition: background .15s, opacity .15s, transform .1s; }
+  .btn:hover { background: var(--bg); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn-primary:hover { opacity: .85; background: var(--text); }
+  .btn-green { color: var(--green); border-color: var(--green-border); }
+  .btn-green:hover { background: var(--green-bg); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+  .btn-logout { font-size: 13px; color: var(--text3); background: none; border: none; cursor: pointer; font-family: inherit; padding: 4px 8px; border-radius: 6px; }
+  .btn-logout:hover { background: var(--border); color: var(--text); }
+
+  /* STATUS / ERROR */
+  .status { font-size: 13px; color: var(--text2); display: none; align-items: center; gap: 8px; margin-top: 10px; }
+  .status.show { display: flex; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { display: none; background: var(--red-bg); border: 1px solid var(--red-border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--red); margin-top: 10px; }
+  .error-box.show { display: block; }
+
+  /* RESULTS */
+  .success-badge { display: inline-block; background: var(--green-bg); color: var(--green); border-radius: 20px; font-size: 12px; font-weight: 500; padding: 3px 12px; margin-bottom: 10px; }
+  .pairs-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  .pairs-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; padding: 7px 10px; border-bottom: 1px solid var(--border2); }
+  .pairs-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .pairs-table tr:last-child td { border-bottom: none; }
+  .pairs-table tr:hover td { background: var(--bg); }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 10px; margin-left: 5px; font-weight: 500; }
+  .tag-trio { background: var(--amber-bg); color: var(--amber); }
+  .tag-warn { background: var(--red-bg); color: var(--red); }
+  .note-text { font-size: 11px; color: var(--text3); font-style: italic; margin-top: 3px; }
+  .email-text { font-size: 12px; color: var(--text2); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  @media (max-width: 500px) {
+    .app { padding: 1rem .75rem; }
+    .pairs-table th:nth-child(2), .pairs-table td:nth-child(2) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-wrap" id="login-screen">
+  <div class="login-card">
+    <div style="font-size:36px;margin-bottom:12px">☕</div>
+    <h2>Alumni Coffee Chat App</h2>
+    <p>Enter the password to continue</p>
+    <div class="login-error" id="login-error">Incorrect password. Try again.</div>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="app">
+  <div class="app-header">
+    <h1><span>☕</span> Alumni Coffee Chat App</h1>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="card">
+    <button class="collapse-toggle" onclick="toggleCollapse(this)">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      How it works &amp; pairing rules
+      <svg class="chev" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="collapse-body">
+      <div class="lbl" style="margin-bottom:8px">Pairing rules — applied in priority order</div>
+      <ul class="rules-list">
+        <li><span class="rbadge p1">Priority 1</span>No repeat pairings — reads all past Round sheets and blocks any pair that has already met.</li>
+        <li><span class="rbadge p2">Priority 2</span>Industry match — pairs fellows where one person's industry interests overlap with the other's primary industry.</li>
+        <li><span class="rbadge p3">Priority 3</span>Different cohorts — avoids pairing fellows from the same cohort where possible.</li>
+      </ul>
+      <hr>
+      <div class="lbl" style="margin-bottom:8px">File format</div>
+      <div class="step-row"><span class="step-num">1</span><span class="step-content">Your file needs a sheet named <code>Fellows</code> with columns: <code>Name</code>, <code>Email</code>, <code>Opt-in</code>, <code>Cohort</code>, <code>Primary Industry</code>, <code>Industry interests</code>.</span></div>
+      <div class="step-row"><span class="step-num">2</span><span class="step-content">Past rounds live on sheets named <code>Round 1</code>, <code>Round 2</code>, etc. in your existing format.</span></div>
+      <div class="step-row"><span class="step-num">3</span><span class="step-content">After generating, export the file — a new <code>Round N</code> sheet is added automatically in the same format.</span></div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <div class="lbl">Upload your workbook</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <span class="drop-icon">📊</span>
+      <p>Drop your alumni coffee chat .xlsx file here</p>
+      <span>or click to browse</span>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+    <div class="file-info" id="file-info">
+      <span class="file-icon">📗</span>
+      <span class="file-name" id="file-name"></span>
+      <span class="file-meta" id="file-meta"></span>
+      <button class="btn btn-sm" onclick="clearFile()">✕</button>
+    </div>
+    <div class="summary-grid" id="summary-grid" style="display:none">
+      <div class="chip"><div class="chip-val" id="s-fellows">—</div><div class="chip-lbl">Fellows opted in</div></div>
+      <div class="chip"><div class="chip-val" id="s-rounds">—</div><div class="chip-lbl">Past rounds</div></div>
+      <div class="chip"><div class="chip-val" id="s-pairs">—</div><div class="chip-lbl">Pairs already made</div></div>
+      <div class="chip"><div class="chip-val" id="s-next">—</div><div class="chip-lbl">Next round</div></div>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div id="action-row" style="display:none">
+    <button class="btn btn-primary" id="pair-btn" onclick="runPairing()">☕ Generate Round <span id="btn-round-num"></span> pairings</button>
+  </div>
+
+  <div class="status" id="status-bar"><div class="spinner"></div><span id="status-msg">Working...</span></div>
+  <div class="error-box" id="error-box"></div>
+
+  <!-- RESULTS -->
+  <div class="card" id="results-wrap" style="display:none">
+    <div class="success-badge" id="pair-count"></div>
+    <div class="lbl" id="round-lbl"></div>
+    <table class="pairs-table">
+      <thead><tr><th>Pairing</th><th>Emails</th><th>Notes</th></tr></thead>
+      <tbody id="pairs-tbody"></tbody>
+    </table>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="exportExcel()">⬇ Export updated Excel</button>
+      <button class="btn" onclick="runPairing()">↺ Re-shuffle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- AUTH ----
+const APP_PASSWORD = '__APP_PASSWORD__';
+
+function login() {
+  const val = document.getElementById('pw-input').value;
+  if (val === APP_PASSWORD) {
+    sessionStorage.setItem('auth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+function logout() {
+  sessionStorage.removeItem('auth');
+  location.reload();
+}
+if (sessionStorage.getItem('auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ---- COLLAPSE ----
+function toggleCollapse(btn) {
+  const body = btn.nextElementSibling;
+  const chev = btn.querySelector('.chev');
+  const open = body.classList.toggle('open');
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+// ---- FILE HANDLING ----
+let workbook = null, fellows = [], pairs = [], pastPairs = new Set(), currentFile = null, nextRound = 1;
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      workbook = XLSX.read(e.target.result, { type: 'array' });
+      document.getElementById('file-name').textContent = file.name;
+      document.getElementById('file-info').classList.add('show');
+      parseWorkbook();
+    } catch(err) { showError('Could not read file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseWorkbook() {
+  const sheetNames = workbook.SheetNames;
+  const fellowsSheet = sheetNames.find(n => n.trim().toLowerCase() === 'fellows');
+  if (!fellowsSheet) { showError('No "Fellows" sheet found in this file.'); return; }
+
+  const raw = XLSX.utils.sheet_to_json(workbook.Sheets[fellowsSheet], { header: 1, defval: '' });
+  const headers = raw[0].map(h => String(h).trim().toLowerCase());
+  const col = kw => headers.findIndex(h => h.includes(kw));
+
+  const nameCol = col('name'), emailCol = col('email'), cohortCol = col('cohort');
+  const primCol = headers.findIndex(h => h.includes('primary'));
+  const intCol = headers.findIndex(h => h.includes('interest'));
+  const optinCol = col('opt');
+
+  fellows = raw.slice(1).map(r => ({
+    name: nameCol >= 0 ? String(r[nameCol]||'').trim() : '',
+    email: emailCol >= 0 ? String(r[emailCol]||'').trim() : '',
+    cohort: cohortCol >= 0 ? String(r[cohortCol]||'').trim() : '',
+    primaryIndustry: primCol >= 0 ? String(r[primCol]||'').trim() : '',
+    interests: intCol >= 0 ? String(r[intCol]||'').trim() : '',
+    optIn: optinCol >= 0 ? String(r[optinCol]||'').trim().toLowerCase() : 'yes'
+  })).filter(f => f.name && f.optIn !== 'no');
+
+  pastPairs = new Set();
+  const roundSheets = sheetNames.filter(n => /^round\s*\d+$/i.test(n.trim()));
+  roundSheets.forEach(sName => {
+    const rRaw = XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: '' });
+    rRaw.slice(1).forEach(row => {
+      const cell = String(row[0]||'').trim();
+      if (!cell.includes(' - ')) return;
+      const parts = cell.split(' - ').map(s => s.trim());
+      if (parts.length >= 2) {
+        pastPairs.add(pk(parts[0], parts[1]));
+        if (parts[2]) { pastPairs.add(pk(parts[0], parts[2])); pastPairs.add(pk(parts[1], parts[2])); }
+      }
+    });
+  });
+
+  const roundNums = roundSheets.map(n => parseInt(n.match(/\d+/)[0]));
+  nextRound = roundNums.length ? Math.max(...roundNums) + 1 : 1;
+
+  document.getElementById('s-fellows').textContent = fellows.length;
+  document.getElementById('s-rounds').textContent = roundSheets.length;
+  document.getElementById('s-pairs').textContent = pastPairs.size;
+  document.getElementById('s-next').textContent = 'Round ' + nextRound;
+  document.getElementById('summary-grid').style.display = 'grid';
+  document.getElementById('file-meta').textContent = fellows.length + ' fellows · ' + roundSheets.length + ' rounds';
+  document.getElementById('action-row').style.display = 'block';
+  document.getElementById('btn-round-num').textContent = nextRound;
+}
+
+function pk(a, b) { return [a.trim(), b.trim()].sort().join('|||'); }
+
+function clearFile() {
+  workbook = null; fellows = []; pairs = []; currentFile = null; pastPairs = new Set();
+  document.getElementById('file-info').classList.remove('show');
+  document.getElementById('summary-grid').style.display = 'none';
+  document.getElementById('action-row').style.display = 'none';
+  document.getElementById('results-wrap').style.display = 'none';
+  hideStatus(); hideError();
+  fileInput.value = '';
+}
+
+// ---- PAIRING ----
+async function runPairing() {
+  if (!fellows.length) { showError('No fellows loaded.'); return; }
+  hideError();
+  document.getElementById('results-wrap').style.display = 'none';
+  showStatus('Asking Claude to generate pairings...');
+  document.getElementById('pair-btn').disabled = true;
+
+  const pastList = Array.from(pastPairs).map(k => { const [a,b] = k.split('|||'); return `${a} & ${b}`; }).join('; ') || 'None';
+  const fellowsData = fellows.map(f => ({ name: f.name, cohort: f.cohort||'?', primaryIndustry: f.primaryIndustry||'?', interests: f.interests||'?' }));
+
+  const prompt = `You are pairing alumni fellows for virtual coffee chats. Apply these rules in strict priority order:
+
+PRIORITY 1 — MUST NOT BREAK: Never recreate a past pair. These pairs have already met:
+${pastList}
+
+PRIORITY 2 — Strong preference: Match industry. Pair fellows where one person's interests overlap with the other's primaryIndustry.
+
+PRIORITY 3 — Preference: Different cohorts. Avoid pairing fellows with the same cohort.
+
+RULES:
+- Every fellow appears exactly once.
+- Pairs of 2. If odd total, make exactly one group of 3.
+- Shuffle — do not go in list order.
+
+Fellows:
+${JSON.stringify(fellowsData)}
+
+Return ONLY valid JSON array, no markdown, no explanation:
+[{"members":["Name A","Name B"],"cohortsSame":false,"industryMatchNote":"brief note or empty string"},...]`;
+
+  try {
+    const res = await fetch('/api/pair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    let raw = data.result.replace(/```json|```/g, '').trim();
+    pairs = JSON.parse(raw);
+    renderPairs();
+  } catch(err) {
+    showError('Pairing failed: ' + err.message);
+  } finally {
+    hideStatus();
+    document.getElementById('pair-btn').disabled = false;
+  }
+}
+
+function getFellow(name) {
+  return fellows.find(f => f.name.toLowerCase() === name.toLowerCase()) || { name, email: '' };
+}
+
+function renderPairs() {
+  const tbody = document.getElementById('pairs-tbody');
+  tbody.innerHTML = '';
+  pairs.forEach(p => {
+    const isTrio = p.members.length > 2;
+    const objs = p.members.map(getFellow);
+    const tr = document.createElement('tr');
+    let notes = '';
+    if (p.industryMatchNote) notes += `<div class="note-text">${p.industryMatchNote}</div>`;
+    if (isTrio) notes += `<span class="tag tag-trio">trio</span>`;
+    if (p.cohortsSame) notes += `<span class="tag tag-warn">same cohort</span>`;
+    tr.innerHTML = `<td><strong>${p.members.join(' - ')}</strong></td><td class="email-text">${objs.map(f=>f.email).filter(Boolean).join(', ')||'—'}</td><td>${notes}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('pair-count').textContent = pairs.length + ' pairs · Round ' + nextRound;
+  document.getElementById('round-lbl').textContent = 'Round ' + nextRound + ' Pairings';
+  document.getElementById('results-wrap').style.display = 'block';
+}
+
+// ---- EXPORT ----
+function exportExcel() {
+  if (!workbook || !pairs.length) return;
+  const wb2 = XLSX.utils.book_new();
+  workbook.SheetNames.forEach(name => XLSX.utils.book_append_sheet(wb2, workbook.Sheets[name], name));
+  const roundLabel = 'Round ' + nextRound;
+  const rows = [[roundLabel + ' Pairings', 'Emails']];
+  pairs.forEach(p => {
+    const objs = p.members.map(getFellow);
+    rows.push([p.members.join(' - '), objs.map(f=>f.email).filter(Boolean).join(', ')]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 50 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb2, ws, roundLabel);
+  const fname = (currentFile ? currentFile.name.replace(/\.[^.]+$/, '') : 'Alumni_Coffee_Chats') + '_Round' + nextRound + '.xlsx';
+  XLSX.writeFile(wb2, fname);
+}
+
+// ---- HELPERS ----
+function showStatus(msg) { const s = document.getElementById('status-bar'); s.querySelector('span').textContent = msg; s.classList.add('show'); }
+function hideStatus() { document.getElementById('status-bar').classList.remove('show'); }
+function showError(msg) { const e = document.getElementById('error-box'); e.textContent = msg; e.classList.add('show'); }
+function hideError() { document.getElementById('error-box').classList.remove('show'); }
+</script>
+</body>
+</html>
